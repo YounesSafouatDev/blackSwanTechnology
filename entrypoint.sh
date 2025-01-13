@@ -50,6 +50,15 @@ function test_db_connection() {
     echo "Database connection successful."
 }
 
+# Create an odoo.conf file to pass DB settings to Odoo
+ODOO_CONF="/etc/odoo/odoo.conf"
+echo "[options]" > $ODOO_CONF
+echo "db_host = $DB_HOST" >> $ODOO_CONF
+echo "db_port = $DB_PORT" >> $ODOO_CONF
+echo "db_user = $DB_USER" >> $ODOO_CONF
+echo "db_password = $DB_PASSWORD" >> $ODOO_CONF
+echo "db_name = $DB_NAME" >> $ODOO_CONF
+
 case "$1" in
     -- | odoo)
         shift
@@ -58,31 +67,32 @@ case "$1" in
             exec odoo "$@"
         else
             echo "Waiting for PostgreSQL to be ready..."
-            wait-for-psql.py ${DB_ARGS[@]} --timeout=30 || {
+            wait-for-psql.py --db_host $DB_HOST --db_port $DB_PORT --db_user $DB_USER --db_password $DB_PASSWORD --timeout=30 || {
                 echo "ERROR: PostgreSQL is not ready after waiting."
                 exit 1
             }
             test_db_connection
             echo "Starting Odoo..."
-            exec odoo "$@" "${DB_ARGS[@]}"
+            exec odoo --config $ODOO_CONF "$@"
         fi
         ;;
 
     -*)
         echo "Waiting for PostgreSQL to be ready..."
-        wait-for-psql.py ${DB_ARGS[@]} --timeout=30 || {
+        wait-for-psql.py --db_host $DB_HOST --db_port $DB_PORT --db_user $DB_USER --db_password $DB_PASSWORD --timeout=30 || {
             echo "ERROR: PostgreSQL is not ready after waiting."
             exit 1
         }
         test_db_connection
         echo "Starting Odoo with custom parameters..."
-        exec odoo "$@" "${DB_ARGS[@]}"
+        exec odoo --config $ODOO_CONF "$@" "${DB_ARGS[@]}"
         ;;
 
     *)
         echo "Executing custom command: $@"
         exec "$@"
         ;;
+
 esac
 
 exit 1
