@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  odoo:
+    build: .
+    container_name: odoo-${PWD##*/}
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - "8069:8069"
+      - "8071:8071"
+      - "8072:8072"
+    volumes:
+      - ./mnt/extra-addons:/mnt/extra-addons
+      - ./var/lib/odoo:/var/lib/odoo
+    depends_on:
+      - wait-for-db
+    networks:
+      - odoo_network
+
+  wait-for-db:
+    image: busybox:1.35-uclibc
+    container_name: wait-for-db
+    command:
+      [
+        "sh",
+        "-c",
+        "until nc -z ${DB_HOST} ${DB_PORT}; do echo waiting for db; sleep 2; done; echo database is ready",
+      ]
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+    networks:
+      - odoo_network
+
+networks:
+  odoo_network:
+    driver: bridge

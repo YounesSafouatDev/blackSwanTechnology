@@ -19,17 +19,23 @@ echo "DB_PASSWORD: [hidden]"
 
 DB_ARGS=()
 
+# Define Odoo configuration file path
+ODOO_RC="/etc/odoo/odoo.conf"
+
+# Function to check if a config value exists and set it
 function check_config() {
     param="$1"
     value="$2"
-    if grep -q -E "^\s*\b${param}\b\s*=" "$ODOO_RC" ; then
+    if grep -q -E "^\s*\b${param}\b\s*=" "$ODOO_RC"; then
         value=$(grep -E "^\s*\b${param}\b\s*=" "$ODOO_RC" | cut -d " " -f3 | sed 's/["\n\r]//g')
         echo "Using ${param} from config file: $value"
     else
         echo "Using ${param} from environment: $value"
     fi
-    DB_ARGS+=("--${param}")
-    DB_ARGS+=("${value}")
+    if [[ -n "$value" ]]; then
+        DB_ARGS+=("--${param}")
+        DB_ARGS+=("${value}")
+    fi
 }
 
 # Check if database parameters exist in the config file or environment
@@ -51,7 +57,6 @@ function test_db_connection() {
 }
 
 # Create an odoo.conf file to pass DB settings to Odoo
-ODOO_CONF="/etc/odoo/odoo.conf"
 echo "[options]" > $ODOO_CONF
 echo "db_host = $DB_HOST" >> $ODOO_CONF
 echo "db_port = $DB_PORT" >> $ODOO_CONF
@@ -59,6 +64,7 @@ echo "db_user = $DB_USER" >> $ODOO_CONF
 echo "db_password = $DB_PASSWORD" >> $ODOO_CONF
 echo "db_name = $DB_NAME" >> $ODOO_CONF
 
+# Handling different arguments
 case "$1" in
     -- | odoo)
         shift
@@ -92,7 +98,6 @@ case "$1" in
         echo "Executing custom command: $@"
         exec "$@"
         ;;
-
 esac
 
 exit 1
