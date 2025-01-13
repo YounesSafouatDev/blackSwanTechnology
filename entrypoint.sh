@@ -4,22 +4,17 @@ set -e
 
 echo "Starting Odoo entrypoint script..."
 
-# Read PASSWORD from file if specified
-if [ -v PASSWORD_FILE ]; then
-    PASSWORD="$(< $PASSWORD_FILE)"
-    echo "Password loaded from PASSWORD_FILE."
-fi
-
-# Set the PostgreSQL database host, port, user, and password
-: ${HOST:=${DB_HOST}}
-: ${PORT:=${DB_PORT}}
-: ${USER:=${DB_USER}}
-: ${PASSWORD:=${DB_PASSWORD}}
+# Ensure all necessary environment variables are set
+: ${DB_HOST:?"DB_HOST is required"}
+: ${DB_PORT:?"DB_PORT is required"}
+: ${DB_USER:?"DB_USER is required"}
+: ${DB_PASSWORD:?"DB_PASSWORD is required"}
+: ${DB_NAME:?"DB_NAME is required"}
 
 # Log database variables for debugging
-echo "DB_HOST: $HOST"
-echo "DB_PORT: $PORT"
-echo "DB_USER: $USER"
+echo "DB_HOST: $DB_HOST"
+echo "DB_PORT: $DB_PORT"
+echo "DB_USER: $DB_USER"
 echo "DB_PASSWORD: [hidden]"
 
 DB_ARGS=()
@@ -38,17 +33,18 @@ function check_config() {
 }
 
 # Check if database parameters exist in the config file or environment
-check_config "db_host" "$HOST"
-check_config "db_port" "$PORT"
-check_config "db_user" "$USER"
-check_config "db_password" "$PASSWORD"
+check_config "db_host" "$DB_HOST"
+check_config "db_port" "$DB_PORT"
+check_config "db_user" "$DB_USER"
+check_config "db_password" "$DB_PASSWORD"
+check_config "db_name" "$DB_NAME"
 
 # Function to test database connectivity
 function test_db_connection() {
     echo "Testing database connectivity..."
-    PGPASSWORD=$PASSWORD psql -h $HOST -U $USER -p $PORT -c '\l' &>/dev/null
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -p $DB_PORT -d $DB_NAME -c '\l' &>/dev/null
     if [ $? -ne 0 ]; then
-        echo "ERROR: Unable to connect to the database at $HOST:$PORT."
+        echo "ERROR: Unable to connect to the database at $DB_HOST:$DB_PORT."
         exit 1
     fi
     echo "Database connection successful."
@@ -71,6 +67,7 @@ case "$1" in
             exec odoo "$@" "${DB_ARGS[@]}"
         fi
         ;;
+
     -*)
         echo "Waiting for PostgreSQL to be ready..."
         wait-for-psql.py ${DB_ARGS[@]} --timeout=30 || {
@@ -81,6 +78,7 @@ case "$1" in
         echo "Starting Odoo with custom parameters..."
         exec odoo "$@" "${DB_ARGS[@]}"
         ;;
+
     *)
         echo "Executing custom command: $@"
         exec "$@"
